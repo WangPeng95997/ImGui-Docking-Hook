@@ -2,11 +2,16 @@
 
 GuiWindow::GuiWindow()
 {
-    // Allocate memory
-    this->lpBuffer = (LPBYTE)::VirtualAlloc(NULL, 0x1000, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
-    ::memset(this->lpBuffer, 0xCC, 0x1000);
+    // Initialize settings
+    this->hWnd = nullptr;
+    this->hModule = nullptr;
+    this->hProcess = nullptr;
+    this->lpModuleAddress = nullptr;
+    this->initialPostion = ImVec2(0.0f, 0.0f);
+    this->uiStatus = GuiState::Reset;
+    this->showMenu = true;
 
-    // Load font
+    // Set font path
     this->fontPath = new char[MAX_PATH] {};
     ::GetEnvironmentVariable("WINDIR", this->fontPath, MAX_PATH);
     ::strcat_s(this->fontPath, MAX_PATH, "\\Fonts\\segoeui.ttf");
@@ -23,9 +28,9 @@ GuiWindow::GuiWindow()
     this->windowTitle = new char[nLength] {};
     ::memcpy(this->windowTitle, strText.c_str(), strText.length());
 
-    // Initialize window settings
-    this->initialPostion = ImVec2(0.0f, 0.0f);
-    this->uiStatus = GuiState::Reset;
+    // Allocate memory
+    this->lpBuffer = (LPBYTE)::VirtualAlloc(NULL, 0x1000, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+    ::memset(this->lpBuffer, 0xCC, 0x1000);
 }
 
 GuiWindow::~GuiWindow()
@@ -37,26 +42,8 @@ GuiWindow::~GuiWindow()
     delete[] this->windowTitle;
 }
 
-static bool CALLBACK EnumHwndCallback(HWND hWnd, LPARAM lParam)
+void GuiWindow::Init()
 {
-    const auto isMainWindow = [hWnd]() {
-        return ::GetWindow(hWnd, GW_OWNER) == NULL && ::IsWindowVisible(hWnd);
-        };
-
-    DWORD dwProcessId = 0;
-    ::GetWindowThreadProcessId(hWnd, &dwProcessId);
-
-    if (::GetCurrentProcessId() != dwProcessId || !isMainWindow() || hWnd == ::GetConsoleWindow())
-        return true;
-
-    *(HWND*)lParam = hWnd;
-
-    return false;
-}
-
-void GuiWindow::Init(HWND hWnd)
-{
-    this->hWnd = hWnd;
     this->hProcess = ::GetCurrentProcess();
     this->hModule = ::GetModuleHandle(MODULENAME);
     this->lpModuleAddress = (LPBYTE)this->hModule;
@@ -70,7 +57,7 @@ void GuiWindow::Update()
         ImGuiWindowFlags_NoScrollbar |
         ImGuiWindowFlags_NoScrollWithMouse |
         ImGuiWindowFlags_NoSavedSettings;
-    ImGui::Begin("Dear ImGui", nullptr, windowflags);
+    ImGui::Begin(WINDOWNAME, nullptr, windowflags);
     if (this->uiStatus & GuiState::Reset)
     {
         ImGui::SetWindowPos(this->initialPostion);
@@ -102,8 +89,6 @@ void GuiWindow::Update()
 
 void GuiWindow::ButtonExit()
 {
-    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.0f, 0.0f, 0.0f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.0f, 0.0f, 0.0f, 1.0f));
     ImGui::SetCursorPos(ImVec2(0, 0));
     ImGui::BeginChildFrame(0x2000, ImVec2(WIDTH, HEIGHT), ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     ImGui::SetCursorPos(ImVec2(0, 0));
@@ -124,5 +109,4 @@ void GuiWindow::ButtonExit()
 
     ImGui::EndChild();
     ImGui::EndChildFrame();
-    ImGui::PopStyleColor(2);
 }

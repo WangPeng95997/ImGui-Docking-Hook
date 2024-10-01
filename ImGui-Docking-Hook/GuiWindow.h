@@ -7,7 +7,7 @@
 #include <string>
 
 #define AUTHOR              "by l4kkS41"
-#define WINDOWNAME          "ImGui Window"
+#define WINDOWNAME          "Dear ImGui"
 #define MAJORVERSION        1
 #define MINORVERSION        0
 #define REVISIONVERSION     0
@@ -22,8 +22,9 @@ class GuiWindow
 public:
     enum GuiState : DWORD
     {
-        Reset = 1 << 0,
-        Exiting = 1 << 1
+        None = 0,
+        Reset = 1,
+        Exiting = 2
     };
 
     HWND        hWnd;
@@ -31,15 +32,16 @@ public:
     HANDLE      hProcess;
     PCHAR       fontPath;
     PCHAR       windowTitle;
-    LPBYTE      lpModuleAddress;
     LPBYTE      lpBuffer;
+    LPBYTE      lpModuleAddress;
     ImVec2      initialPostion;
     DWORD       uiStatus;
+    bool        showMenu;
 
     GuiWindow();
     ~GuiWindow();
 
-    void Init(HWND hWnd);
+    void Init();
     void Update();
     
     void ButtonExit();

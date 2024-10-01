@@ -4,13 +4,14 @@
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
-static LPDIRECT3D9              g_pD3D = nullptr;
-static LPDIRECT3DDEVICE9        g_pd3dDevice = nullptr;
-static bool                     g_DeviceLost = false;
+static LPDIRECT3D9              g_pD3D;
+static LPDIRECT3DDEVICE9        g_pd3dDevice;
+static bool                     g_DeviceLost;
 static D3DPRESENT_PARAMETERS    g_d3dpp{};
-static WNDPROC                  OriginalWndProc;
+static WNDPROC                  g_OriginalWndProc;
 static HMODULE                  g_hInstance;
 static GuiWindow*               g_GuiWindow;
+static HWND                     g_hWnd;
 
 void ResetDevice()
 {
@@ -54,11 +55,38 @@ bool CreateDeviceD3D(HWND hWnd)
     return true;
 }
 
-LRESULT WINAPI WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+static bool CALLBACK EnumHwndCallback(HWND hWnd, LPARAM lParam)
 {
-    if (ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))
+    const auto isMainWindow = [hWnd]() {
+        return ::GetWindow(hWnd, GW_OWNER) == NULL && ::IsWindowVisible(hWnd);
+        };
+
+    DWORD dwProcessId = 0;
+    ::GetWindowThreadProcessId(hWnd, &dwProcessId);
+
+    if (::GetCurrentProcessId() != dwProcessId || !isMainWindow() || hWnd == ::GetConsoleWindow())
         return true;
 
+    *(HWND*)lParam = hWnd;
+
+    return false;
+}
+
+LRESULT WINAPI WndProc2(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+    switch (uMsg)
+    {
+    case WM_KEYDOWN:
+        if (wParam == VK_INSERT)
+            g_GuiWindow->showMenu = !g_GuiWindow->showMenu;
+        break;
+    }
+
+    return ::CallWindowProc(g_OriginalWndProc, hWnd, uMsg, wParam, lParam);
+}
+
+LRESULT WINAPI WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
     switch (uMsg)
     {
     case WM_DESTROY:
@@ -79,50 +107,14 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         break;
     }
 
+    if (g_GuiWindow->showMenu && ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))
+        return true;
+
     return ::DefWindowProc(hWnd, uMsg, wParam, lParam);
 }
 
-DWORD WINAPI ThreadEntry(LPVOID lpParameter)
+inline static void InitImGui()
 {
-    g_hInstance = (HMODULE)lpParameter;
-
-    WNDCLASSEX windowClass{};
-    windowClass.cbSize = sizeof(WNDCLASSEX);
-    windowClass.style = CS_CLASSDC;
-    windowClass.lpfnWndProc = WndProc;
-    windowClass.cbClsExtra = 0;
-    windowClass.cbWndExtra = 0;
-    windowClass.hInstance = ::GetModuleHandle(NULL);
-    windowClass.hIcon = NULL;
-    windowClass.hCursor = NULL;
-    windowClass.hbrBackground = NULL;
-    windowClass.lpszMenuName = NULL;
-    windowClass.lpszClassName = "ImGui DirectX9";
-    windowClass.hIconSm = NULL;
-
-    ::RegisterClassEx(&windowClass);
-    HWND hWnd = ::CreateWindow(
-        windowClass.lpszClassName,
-        "Dear ImGui DirectX9",
-        WS_POPUP,
-        0,
-        0,
-        100,
-        100,
-        NULL,
-        NULL,
-        windowClass.hInstance,
-        NULL);
-    g_GuiWindow = new GuiWindow();
-    g_GuiWindow->Init(hWnd);
-
-    if (!CreateDeviceD3D(hWnd)) {
-        CleanupDeviceD3D();
-        ::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
-
-        return ERROR_INVALID_FUNCTION;
-    }
-
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
@@ -135,9 +127,9 @@ DWORD WINAPI ThreadEntry(LPVOID lpParameter)
 
     ImGuiStyle& style = ImGui::GetStyle();
     style.WindowBorderSize = 0.0f;
-    style.WindowRounding = 5.0f;
+    style.WindowRounding = 0.0f;
     style.FrameBorderSize = 0.0f;
-    style.FrameRounding = 4.0f;
+    style.FrameRounding = 0.0f;
     style.PopupRounding = 5.0f;
     style.ScrollbarRounding = 5.0f;
     style.GrabRounding = 5.0f;
@@ -149,7 +141,7 @@ DWORD WINAPI ThreadEntry(LPVOID lpParameter)
     style.IndentSpacing = 25.0f;
     style.ScrollbarSize = 15.0f;
     style.GrabMinSize = 10.0f;
-    style.ButtonTextAlign = ImVec2(0.5f, 0.5f);
+    style.ButtonTextAlign = ImVec2(0.5f, 0.46f);
 
     ImVec4* colors = style.Colors;
     colors[ImGuiCol_Text] = ImVec4(0.95f, 0.96f, 0.98f, 1.00f);
@@ -201,10 +193,46 @@ DWORD WINAPI ThreadEntry(LPVOID lpParameter)
     colors[ImGuiCol_NavWindowingDimBg] = ImVec4(0.80f, 0.80f, 0.80f, 0.20f);
     colors[ImGuiCol_ModalWindowDimBg] = ImVec4(0.80f, 0.80f, 0.80f, 0.35f);
 
-    ImGui_ImplWin32_Init(hWnd);
+    ImGui_ImplWin32_Init(g_GuiWindow->hWnd);
     ImGui_ImplDX9_Init(g_pd3dDevice);
-    OriginalWndProc = (WNDPROC)::SetWindowLongPtr(g_GuiWindow->hWnd, GWLP_WNDPROC, (LONG_PTR)WndProc);
+    g_OriginalWndProc = (WNDPROC)::SetWindowLongPtr(g_hWnd, GWLP_WNDPROC, (LONG_PTR)WndProc2);
+}
 
+DWORD WINAPI ThreadEntry(LPVOID lpParameter)
+{
+    WNDCLASSEX windowClass{};
+    windowClass.cbSize = sizeof(WNDCLASSEX);
+    windowClass.style = CS_CLASSDC;
+    windowClass.lpfnWndProc = WndProc;
+    windowClass.cbClsExtra = 0;
+    windowClass.cbWndExtra = 0;
+    windowClass.hInstance = ::GetModuleHandle(NULL);
+    windowClass.hIcon = NULL;
+    windowClass.hCursor = NULL;
+    windowClass.hbrBackground = NULL;
+    windowClass.lpszMenuName = NULL;
+    windowClass.lpszClassName = "ImGui DirectX9";
+    windowClass.hIconSm = NULL;
+    ::RegisterClassEx(&windowClass);
+
+    do
+    {
+        ::EnumWindows((WNDENUMPROC)EnumHwndCallback, (LPARAM)&g_hWnd);
+        ::Sleep(200);
+    } while (g_hWnd == NULL);
+    g_hInstance = (HMODULE)lpParameter;
+    g_GuiWindow = new GuiWindow();
+    g_GuiWindow->Init();
+    g_GuiWindow->hWnd = ::CreateWindow(windowClass.lpszClassName, "Dear ImGui DirectX9", WS_POPUP, 0, 0, 100, 100, NULL, NULL, windowClass.hInstance, NULL);
+
+    if (!CreateDeviceD3D(g_GuiWindow->hWnd)) {
+        CleanupDeviceD3D();
+        ::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
+
+        return ERROR_INVALID_FUNCTION;
+    }
+
+    InitImGui();
     bool done = false;
     while (!done)
     {
@@ -236,8 +264,10 @@ DWORD WINAPI ThreadEntry(LPVOID lpParameter)
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
-        ImGui::ShowDemoWindow();
-        //g_GuiWindow->Update();
+        if (g_GuiWindow->showMenu) {
+            ImGui::ShowDemoWindow();
+            //g_GuiWindow->Update();
+        }
 
         ImGui::EndFrame();
         g_pd3dDevice->SetRenderState(D3DRS_ZENABLE, FALSE);
@@ -251,7 +281,7 @@ DWORD WINAPI ThreadEntry(LPVOID lpParameter)
             ImGui_ImplDX9_RenderDrawData(ImGui::GetDrawData());
             g_pd3dDevice->EndScene();
         }
-        if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+        if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
         {
             ImGui::UpdatePlatformWindows();
             ImGui::RenderPlatformWindowsDefault();
@@ -261,15 +291,14 @@ DWORD WINAPI ThreadEntry(LPVOID lpParameter)
         if (result == D3DERR_DEVICELOST)
             g_DeviceLost = true;
     }
-    ::SetWindowLongPtr(g_GuiWindow->hWnd, GWLP_WNDPROC, (LONG_PTR)OriginalWndProc);
+    ::SetWindowLongPtr(g_hWnd, GWLP_WNDPROC, (LONG_PTR)g_OriginalWndProc);
     ImGui_ImplDX9_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
     CleanupDeviceD3D();
 
-    ::DestroyWindow(hWnd);
+    ::DestroyWindow(g_GuiWindow->hWnd);
     ::UnregisterClass(windowClass.lpszClassName, windowClass.hInstance);
-    delete g_GuiWindow;
     ::FreeLibraryAndExitThread(g_hInstance, EXIT_SUCCESS);
 
     return 0;
@@ -285,6 +314,7 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD dwReason, LPVOID lpReserved)
         break;
 
     case DLL_PROCESS_DETACH:
+        delete g_GuiWindow;
         break;
     }
 
