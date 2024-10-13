@@ -1,11 +1,11 @@
 # ImGui-DirectX9-Hook
 
 ## Getting Started
-[Dllmain.cpp](https://github.com/WangPeng95997/ImGui-Docking-Hook/blob/master/ImGui-Docking-Hook/Dllmain.cpp#L267-L270)
+[Dllmain.cpp](https://github.com/WangPeng95997/ImGui-Docking-Hook/blob/master/ImGui-Docking-Hook/Dllmain.cpp#L265-L266)
 ```C++
 if (g_GuiWindow->showMenu) {
-	ImGui::ShowDemoWindow();
-	//g_GuiWindow->Update();
+    ImGui::ShowDemoWindow();
+    //g_GuiWindow->Update();
 }
 ```
 ## Screenshot

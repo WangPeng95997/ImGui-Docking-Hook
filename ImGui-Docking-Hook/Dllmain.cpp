@@ -99,8 +99,7 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         break;
 
     case WM_DPICHANGED:
-        if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_DpiEnableScaleViewports)
-        {
+        if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_DpiEnableScaleViewports) {
             const RECT* suggested_rect = (RECT*)lParam;
             ::SetWindowPos(hWnd, nullptr, suggested_rect->left, suggested_rect->top, suggested_rect->right - suggested_rect->left, suggested_rect->bottom - suggested_rect->top, SWP_NOZORDER | SWP_NOACTIVATE);
         }
@@ -117,10 +116,8 @@ inline static void InitImGui()
 {
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;    // Enable Gamepad Controls
-    //io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;       // Enable Docking
-    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;       // Enable Multi-Viewport / Platform Windows
+    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
     io.Fonts->AddFontFromFileTTF(g_GuiWindow->fontPath, 20.0f);
     io.IniFilename = nullptr;
     io.LogFilename = nullptr;
@@ -131,7 +128,7 @@ inline static void InitImGui()
     style.FrameBorderSize = 0.0f;
     style.FrameRounding = 0.0f;
     style.PopupRounding = 5.0f;
-    style.ScrollbarRounding = 5.0f;
+    style.ScrollbarRounding = 0.0f;
     style.GrabRounding = 5.0f;
     style.TabRounding = 4.0f;
     style.WindowPadding = ImVec2(10.0f, 5.0f);
@@ -139,7 +136,7 @@ inline static void InitImGui()
     style.ItemSpacing = ImVec2(10.0f, 8.0f);
     style.ItemInnerSpacing = ImVec2(8.0f, 6.0f);
     style.IndentSpacing = 25.0f;
-    style.ScrollbarSize = 15.0f;
+    style.ScrollbarSize = 0.0f;
     style.GrabMinSize = 10.0f;
     style.ButtonTextAlign = ImVec2(0.5f, 0.46f);
 
@@ -223,7 +220,7 @@ DWORD WINAPI ThreadEntry(LPVOID lpParameter)
     g_hInstance = (HMODULE)lpParameter;
     g_GuiWindow = new GuiWindow();
     g_GuiWindow->Init();
-    g_GuiWindow->hWnd = ::CreateWindow(windowClass.lpszClassName, "Dear ImGui DirectX9", WS_POPUP, 0, 0, 100, 100, NULL, NULL, windowClass.hInstance, NULL);
+    g_GuiWindow->hWnd = ::CreateWindow(windowClass.lpszClassName, "Dear ImGui DirectX9", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 100, 100, NULL, NULL, windowClass.hInstance, NULL);
 
     if (!CreateDeviceD3D(g_GuiWindow->hWnd)) {
         CleanupDeviceD3D();
