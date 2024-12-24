@@ -1,4 +1,4 @@
-# ImGui-DirectX9-Hook
+# ImGui-Docking-Hook
 
 ## Getting Started
 [Dllmain.cpp](https://github.com/WangPeng95997/ImGui-Docking-Hook/blob/master/ImGui-Docking-Hook/Dllmain.cpp#L278-L279)
