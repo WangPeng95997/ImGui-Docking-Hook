@@ -7,7 +7,7 @@ extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT uMs
 static LPDIRECT3D9              g_pD3D;
 static LPDIRECT3DDEVICE9        g_pd3dDevice;
 static bool                     g_DeviceLost;
-static D3DPRESENT_PARAMETERS    g_d3dpp{};
+static D3DPRESENT_PARAMETERS    g_d3dpp;
 static WNDPROC                  g_OriginalWndProc;
 static HMODULE                  g_hInstance;
 static GuiWindow*               g_GuiWindow;
@@ -33,7 +33,6 @@ bool CreateDeviceD3D(HWND hWnd)
     if ((g_pD3D = ::Direct3DCreate9(D3D_SDK_VERSION)) == NULL)
         return false;
 
-    ZeroMemory(&g_d3dpp, sizeof(g_d3dpp));
     g_d3dpp.BackBufferWidth = 0;
     g_d3dpp.BackBufferHeight = 0;
     g_d3dpp.BackBufferFormat = D3DFMT_UNKNOWN;
@@ -115,10 +114,13 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 inline static void InitImGui()
 {
     ImGui::CreateContext();
+
+    ImFontConfig fontConfig{};
+    fontConfig.GlyphOffset.y = -1.75f;
+
     ImGuiIO& io = ImGui::GetIO();
-    io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
-    io.Fonts->AddFontFromFileTTF(g_GuiWindow->fontPath, 20.0f);
+    io.Fonts->AddFontFromFileTTF(g_GuiWindow->fontPath.c_str(), FONT_SIZE, &fontConfig);
     io.IniFilename = nullptr;
     io.LogFilename = nullptr;
 
@@ -132,13 +134,13 @@ inline static void InitImGui()
     style.GrabRounding = 5.0f;
     style.TabRounding = 4.0f;
     style.WindowPadding = ImVec2(10.0f, 5.0f);
-    style.FramePadding = ImVec2(4.0f, 2.0f);
+    style.FramePadding = ImVec2(0.0f, 0.0f);
     style.ItemSpacing = ImVec2(10.0f, 8.0f);
     style.ItemInnerSpacing = ImVec2(8.0f, 6.0f);
     style.IndentSpacing = 25.0f;
     style.ScrollbarSize = 0.0f;
     style.GrabMinSize = 10.0f;
-    style.ButtonTextAlign = ImVec2(0.5f, 0.46f);
+    style.ButtonTextAlign = ImVec2(0.5f, 0.50f);
 
     ImVec4* colors = style.Colors;
     colors[ImGuiCol_Text] = ImVec4(0.95f, 0.96f, 0.98f, 1.00f);
@@ -208,7 +210,7 @@ DWORD WINAPI ThreadEntry(LPVOID lpParameter)
     windowClass.hCursor = NULL;
     windowClass.hbrBackground = NULL;
     windowClass.lpszMenuName = NULL;
-    windowClass.lpszClassName = "ImGui DirectX9";
+    windowClass.lpszClassName = "Dear ImGui Docking";
     windowClass.hIconSm = NULL;
     ::RegisterClassEx(&windowClass);
 
@@ -219,8 +221,19 @@ DWORD WINAPI ThreadEntry(LPVOID lpParameter)
     } while (g_hWnd == NULL);
     g_hInstance = (HMODULE)lpParameter;
     g_GuiWindow = new GuiWindow();
-    g_GuiWindow->Init();
-    g_GuiWindow->hWnd = ::CreateWindow(windowClass.lpszClassName, "Dear ImGui DirectX9", WS_OVERLAPPEDWINDOW, CW_USEDEFAULT, CW_USEDEFAULT, 100, 100, NULL, NULL, windowClass.hInstance, NULL);
+    g_GuiWindow->Initialize();
+    g_GuiWindow->hWnd = ::CreateWindow(
+        windowClass.lpszClassName,
+        windowClass.lpszClassName,
+        WS_OVERLAPPEDWINDOW,
+        CW_USEDEFAULT,
+        CW_USEDEFAULT,
+        100,
+        100,
+        NULL,
+        NULL,
+        windowClass.hInstance,
+        NULL);
 
     if (!CreateDeviceD3D(g_GuiWindow->hWnd)) {
         CleanupDeviceD3D();
