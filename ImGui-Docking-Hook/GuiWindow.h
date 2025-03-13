@@ -1,10 +1,10 @@
 #pragma once
+#include <Windows.h>
+#include <string>
 #include "ImGui/imgui.h"
 #include "Imgui/imgui_impl_dx9.h"
 #include "Imgui/imgui_impl_win32.h"
 #include "Imgui/imgui_internal.h"
-#include <Windows.h>
-#include <string>
 
 constexpr const char* AUTHOR_INFO = "Created by l4kkS41 On ";
 constexpr const char* WINDOW_NAME = "Dear ImGui ";

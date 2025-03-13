@@ -1,5 +1,5 @@
-#include "GuiWindow.h"
 #include <d3d9.h>
+#include "GuiWindow.h"
 #pragma comment(lib, "d3d9.lib")
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
@@ -71,7 +71,7 @@ static bool CALLBACK EnumHwndCallback(HWND hWnd, LPARAM lParam)
     return false;
 }
 
-LRESULT WINAPI WndProc2(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+LRESULT WINAPI WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     switch (uMsg)
     {
@@ -84,7 +84,7 @@ LRESULT WINAPI WndProc2(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
     return ::CallWindowProc(g_OriginalWndProc, hWnd, uMsg, wParam, lParam);
 }
 
-LRESULT WINAPI WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+LRESULT WINAPI WndProc_Self(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
     switch (uMsg)
     {
@@ -99,8 +99,8 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
     case WM_DPICHANGED:
         if (ImGui::GetIO().ConfigFlags & ImGuiConfigFlags_DpiEnableScaleViewports) {
-            const RECT* suggested_rect = (RECT*)lParam;
-            ::SetWindowPos(hWnd, nullptr, suggested_rect->left, suggested_rect->top, suggested_rect->right - suggested_rect->left, suggested_rect->bottom - suggested_rect->top, SWP_NOZORDER | SWP_NOACTIVATE);
+            const RECT* rect = (RECT*)lParam;
+            ::SetWindowPos(hWnd, nullptr, rect->left, rect->top, rect->right - rect->left, rect->bottom - rect->top, SWP_NOZORDER | SWP_NOACTIVATE);
         }
         break;
     }
@@ -140,7 +140,7 @@ inline static void InitImGui()
     style.IndentSpacing = 25.0f;
     style.ScrollbarSize = 0.0f;
     style.GrabMinSize = 10.0f;
-    style.ButtonTextAlign = ImVec2(0.5f, 0.50f);
+    style.ButtonTextAlign = ImVec2(0.50f, 0.50f);
 
     ImVec4* colors = style.Colors;
     colors[ImGuiCol_Text] = ImVec4(0.95f, 0.96f, 0.98f, 1.00f);
@@ -194,7 +194,7 @@ inline static void InitImGui()
 
     ImGui_ImplWin32_Init(g_GuiWindow->hWnd);
     ImGui_ImplDX9_Init(g_pd3dDevice);
-    g_OriginalWndProc = (WNDPROC)::SetWindowLongPtr(g_hWnd, GWLP_WNDPROC, (LONG_PTR)WndProc2);
+    g_OriginalWndProc = (WNDPROC)::SetWindowLongPtr(g_hWnd, GWLP_WNDPROC, (LONG_PTR)WndProc);
 }
 
 DWORD WINAPI ThreadEntry(LPVOID lpParameter)
@@ -202,7 +202,7 @@ DWORD WINAPI ThreadEntry(LPVOID lpParameter)
     WNDCLASSEX windowClass{};
     windowClass.cbSize = sizeof(WNDCLASSEX);
     windowClass.style = CS_CLASSDC;
-    windowClass.lpfnWndProc = WndProc;
+    windowClass.lpfnWndProc = WndProc_Self;
     windowClass.cbClsExtra = 0;
     windowClass.cbWndExtra = 0;
     windowClass.hInstance = ::GetModuleHandle(NULL);
