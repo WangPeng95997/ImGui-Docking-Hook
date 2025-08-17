@@ -6,40 +6,34 @@ GuiWindow::GuiWindow()
     this->hWnd = nullptr;
     this->hModule = nullptr;
     this->hProcess = nullptr;
-    this->lpModuleAddress = nullptr;
-    this->initialPosition = ImVec2(0.0f, 0.0f);
-    this->uiStatus = static_cast<DWORD>(GuiState::GuiState_Reset);
+    this->initialPos = ImVec2(0.0f, 0.0f);
+    this->uiState = static_cast<DWORD>(GuiState::GuiState_Reset);
     this->showMenu = true;
 
     // Set font path
-    LPSTR lpBuffer = new char[MAX_PATH] {};
-    ::GetEnvironmentVariable("WINDIR", lpBuffer, MAX_PATH);
-    ::strcat_s(lpBuffer, MAX_PATH, "\\Fonts\\segoeui.ttf");
-    this->fontPath = lpBuffer;
-    delete[] lpBuffer;
+    char szBuffer[MAX_PATH]{};
+    ::GetEnvironmentVariable("WINDIR", szBuffer, MAX_PATH);
+    this->strFontPath = std::string(szBuffer) + "\\Fonts\\segoeui.ttf";
 
     // Set window title
-    this->windowTitle = this->windowTitle.append(WINDOW_NAME).append("v") +
-        std::to_string(MAJOR_VERSION) + "." +
-        std::to_string(MINOR_VERSION) + "." +
-        std::to_string(REVISION_VERSION);
+    this->strWindowTitle = WINDOW_NAME;
 
     // Allocate memory
     this->lpBuffer = (LPBYTE)::VirtualAlloc(NULL, 0x1000, MEM_COMMIT | MEM_RESERVE, PAGE_EXECUTE_READWRITE);
-    if (this->lpBuffer)
-        ::memset(this->lpBuffer, 0xCC, 0x1000);
 }
 
 GuiWindow::~GuiWindow()
 {
-    ::VirtualFree(this->lpBuffer, 0, MEM_RELEASE);
+    if (this->lpBuffer) {
+        ::VirtualFree(this->lpBuffer, 0, MEM_RELEASE);
+        this->lpBuffer = nullptr;
+    }
 }
 
 void GuiWindow::Initialize()
 {
     this->hProcess = ::GetCurrentProcess();
-    this->hModule = ::GetModuleHandle(MODULE_NAME);
-    this->lpModuleAddress = (LPBYTE)this->hModule;
+    this->hModule = ::GetModuleHandle(nullptr);
 }
 
 void GuiWindow::Update()
@@ -54,11 +48,11 @@ void GuiWindow::Update()
     ImGui::Begin(WINDOW_NAME, nullptr, windowflags);
 
     // Check if the window state needs to be reset
-    if (this->uiStatus & static_cast<DWORD>(GuiState::GuiState_Reset))
+    if (this->uiState & static_cast<DWORD>(GuiState::GuiState_Reset))
     {
-        ImGui::SetWindowPos(this->initialPosition);
+        ImGui::SetWindowPos(this->initialPos);
         ImGui::SetWindowSize(ImVec2(WINDOW_WIDTH, WINDOW_HEIGHT));
-        this->uiStatus &= ~static_cast<DWORD>(GuiState::GuiState_Reset);
+        this->uiState &= ~static_cast<DWORD>(GuiState::GuiState_Reset);
     }
 
     // Get window padding and position
@@ -68,7 +62,7 @@ void GuiWindow::Update()
     // Display CloseButton in the top-right corner
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0, 0));
     if (ImGui::CloseButton(CLOSE_BUTTON_ID, ImVec2(windowPosition.x + WINDOW_WIDTH - FONT_SIZE, windowPosition.y)))
-        this->uiStatus |= static_cast<DWORD>(GuiState::GuiState_Exiting);
+        this->uiState |= static_cast<DWORD>(GuiState::GuiState_Exiting);
     ImGui::PopStyleVar();
 
     // Display shortcut hint in the bottom-right corner
@@ -83,18 +77,21 @@ void GuiWindow::Update()
     ImGui::Text(authorInfo.c_str());
 
     // Check if an exit operation is required
-    if (this->uiStatus & static_cast<DWORD>(GuiState::GuiState_Exiting))
+    if (this->uiState & static_cast<DWORD>(GuiState::GuiState_Exiting))
         this->ExitButton();
 
     // Display the window title at the top of the ImGui window
     ImGui::SetCursorPos(ImVec2(windowPadding.x, windowPadding.y));
-    ImGui::Text(windowTitle.c_str());
+    ImGui::Text(strWindowTitle.c_str());
 
-    // Insert your custom ImGui code here
+    // Insert your code here
     ImGui::Text("Hello World");
-    ImGui::Checkbox("Hello World##0", (bool*)this->lpBuffer);
-    ImGui::Button("Hello World##1", ImVec2(100.0f, 20.0f));
-
+    ImGui::TextColored(ImVec4(0.0f, 1.0f, 0.0f, 1.0f), "TextColored");
+    ImGui::TextDisabled("TextDisabled");
+    ImGui::TextLinkOpenURL("Hyperlink", "https://github.com/ocornut/imgui");
+    ImGui::Button("Button", ImVec2(100.0f, 20.0f));
+    ImGui::Checkbox("Checkbox", (bool*)this->lpBuffer);
+    
     ImGui::End();
 }
 
@@ -104,19 +101,19 @@ void GuiWindow::ExitButton()
     ImGui::BeginChildFrame(CHILD_FRAME_ID, ImVec2(WINDOW_WIDTH, WINDOW_HEIGHT), ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoScrollWithMouse);
     ImGui::SetCursorPos(ImVec2(0, 0));
     ImGui::BeginChild("Exiting", ImVec2(WINDOW_WIDTH, WINDOW_HEIGHT));
-
-    std::string strText = std::string("Do you want to exit this program?");
+    
+    std::string strText = std::string("Do you want to unload this DLL?");
     ImVec2 textSize = ImGui::CalcTextSize(strText.c_str());
     ImGui::SetCursorPos(ImVec2((WINDOW_WIDTH - textSize.x) * 0.5f, WINDOW_HEIGHT * 0.382f - textSize.y * 0.5f));
     ImGui::Text(strText.c_str());
-
-    ImGui::SetCursorPos(ImVec2(WINDOW_WIDTH * 0.5f - 120, WINDOW_HEIGHT * 0.618f));
-    if (ImGui::Button("Confirm", ImVec2(100.0f, 50.0f)))
+    
+    ImGui::SetCursorPos(ImVec2(WINDOW_WIDTH * 0.5f - 100, WINDOW_HEIGHT * 0.618f));
+    if (ImGui::Button("Confirm", ImVec2(80.0f, 40.0f)))
         ::PostMessage(this->hWnd, WM_QUIT, 0, 0);
 
     ImGui::SetCursorPos(ImVec2(WINDOW_WIDTH * 0.5f + 20, WINDOW_HEIGHT * 0.618f));
-    if (ImGui::Button("Cancel", ImVec2(100.0f, 50.0f)))
-        this->uiStatus &= ~static_cast<DWORD>(GuiState::GuiState_Exiting);
+    if (ImGui::Button("Cancel", ImVec2(80.0f, 40.0f)))
+        this->uiState &= ~static_cast<DWORD>(GuiState::GuiState_Exiting);
 
     ImGui::EndChild();
     ImGui::EndChildFrame();

@@ -2,16 +2,12 @@
 #include <Windows.h>
 #include <string>
 #include "ImGui/imgui.h"
-#include "Imgui/imgui_impl_dx9.h"
+#include "Imgui/imgui_impl_dx11.h"
 #include "Imgui/imgui_impl_win32.h"
 #include "Imgui/imgui_internal.h"
 
 constexpr const char* AUTHOR_INFO = "Created by l4kkS41 On ";
-constexpr const char* WINDOW_NAME = "Dear ImGui ";
-constexpr const char* MODULE_NAME = nullptr;
-constexpr DWORD MAJOR_VERSION = 1;
-constexpr DWORD MINOR_VERSION = 0;
-constexpr DWORD REVISION_VERSION = 0;
+constexpr const char* WINDOW_NAME = "Dear ImGui";
 constexpr float FONT_SIZE = 20.0f;
 constexpr float WINDOW_WIDTH = 600.0f;
 constexpr float WINDOW_HEIGHT = 400.0f;
@@ -32,12 +28,11 @@ public:
     HWND hWnd;
     HMODULE hModule;
     HANDLE hProcess;
-    std::string fontPath;
-    std::string windowTitle;
+    std::string strFontPath;
+    std::string strWindowTitle;
     LPBYTE lpBuffer;
-    LPBYTE lpModuleAddress;
-    ImVec2 initialPosition;
-    DWORD uiStatus;
+    ImVec2 initialPos;
+    DWORD uiState;
     bool showMenu;
 
     GuiWindow();
