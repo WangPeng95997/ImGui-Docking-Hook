@@ -6,7 +6,7 @@
 ImGui::ShowDemoWindow();
 //g_GuiWindow->Update();
 ```
-[GuiWindow.cpp](https://github.com/WangPeng95997/ImGui-Docking-Hook/blob/master/ImGui-Docking-Hook/GuiWindow.cpp#L87-L93)
+[GuiWindow.cpp](https://github.com/WangPeng95997/ImGui-Docking-Hook/blob/master/ImGui-Docking-Hook/GuiWindow.cpp#L111-L117)
 ```C++
 // Insert your code here
 ImGui::Text("Hello World");

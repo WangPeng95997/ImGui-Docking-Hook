@@ -9,10 +9,10 @@ static ID3D11DeviceContext*     g_pd3dDeviceContext;
 static IDXGISwapChain*          g_pSwapChain;
 static BOOL                     g_SwapChainOccluded;
 static ID3D11RenderTargetView*  g_mainRenderTargetView;
-static WNDPROC                  g_OriginalWndProc;
+static WNDPROC                  g_OriginWndProc;
 static HMODULE                  g_hInstance;
-static GuiWindow*               g_GuiWindow;
 static HWND                     g_hWnd;
+static GuiWindow*               g_GuiWindow;
 
 void CleanupRenderTarget()
 {
@@ -39,28 +39,28 @@ void CreateRenderTarget()
 
 bool CreateDeviceD3D(HWND hWnd)
 {
-    DXGI_SWAP_CHAIN_DESC dscd{};
-    dscd.BufferCount = 2;
-    dscd.BufferDesc.Width = 0;
-    dscd.BufferDesc.Height = 0;
-    dscd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
-    dscd.BufferDesc.RefreshRate.Numerator = 60;
-    dscd.BufferDesc.RefreshRate.Denominator = 1;
-    dscd.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-    dscd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-    dscd.OutputWindow = hWnd;
-    dscd.SampleDesc.Count = 1;
-    dscd.SampleDesc.Quality = 0;
-    dscd.Windowed = TRUE;
-    dscd.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
+    DXGI_SWAP_CHAIN_DESC swapChainDesc{};
+    swapChainDesc.BufferCount = 2;
+    swapChainDesc.BufferDesc.Width = 0;
+    swapChainDesc.BufferDesc.Height = 0;
+    swapChainDesc.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    swapChainDesc.BufferDesc.RefreshRate.Numerator = 60;
+    swapChainDesc.BufferDesc.RefreshRate.Denominator = 1;
+    swapChainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+    swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+    swapChainDesc.OutputWindow = hWnd;
+    swapChainDesc.SampleDesc.Count = 1;
+    swapChainDesc.SampleDesc.Quality = 0;
+    swapChainDesc.Windowed = TRUE;
+    swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_DISCARD;
 
     UINT createDeviceFlags = 0;
     D3D_FEATURE_LEVEL featureLevel;
     const D3D_FEATURE_LEVEL featureLevelArray[2] = { D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_0, };
-    HRESULT res = ::D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, createDeviceFlags, featureLevelArray, 2, D3D11_SDK_VERSION, &dscd, &g_pSwapChain, &g_pd3dDevice, &featureLevel, &g_pd3dDeviceContext);
-    if (res == DXGI_ERROR_UNSUPPORTED)
-        res = ::D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_WARP, nullptr, createDeviceFlags, featureLevelArray, 2, D3D11_SDK_VERSION, &dscd, &g_pSwapChain, &g_pd3dDevice, &featureLevel, &g_pd3dDeviceContext);
-    if (res != S_OK)
+    HRESULT hResult = ::D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, createDeviceFlags, featureLevelArray, 2, D3D11_SDK_VERSION, &swapChainDesc, &g_pSwapChain, &g_pd3dDevice, &featureLevel, &g_pd3dDeviceContext);
+    if (hResult == DXGI_ERROR_UNSUPPORTED)
+        hResult = ::D3D11CreateDeviceAndSwapChain(nullptr, D3D_DRIVER_TYPE_WARP, nullptr, createDeviceFlags, featureLevelArray, 2, D3D11_SDK_VERSION, &swapChainDesc, &g_pSwapChain, &g_pd3dDevice, &featureLevel, &g_pd3dDeviceContext);
+    if (hResult != S_OK)
         return false;
 
     CreateRenderTarget();
@@ -99,7 +99,7 @@ LRESULT WINAPI WndProc_Self(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
         break;
     }
 
-    if (g_GuiWindow->showMenu && ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))
+    if (g_GuiWindow->IsShowMenu && ImGui_ImplWin32_WndProcHandler(hWnd, uMsg, wParam, lParam))
         return true;
 
     return ::DefWindowProc(hWnd, uMsg, wParam, lParam);
@@ -111,11 +111,11 @@ LRESULT WINAPI WndProc_Target(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam
     {
     case WM_KEYDOWN:
         if (wParam == VK_INSERT)
-            g_GuiWindow->showMenu = !g_GuiWindow->showMenu;
+            g_GuiWindow->IsShowMenu = !g_GuiWindow->IsShowMenu;
         break;
     }
 
-    return ::CallWindowProc(g_OriginalWndProc, hWnd, uMsg, wParam, lParam);
+    return ::CallWindowProc(g_OriginWndProc, hWnd, uMsg, wParam, lParam);
 }
 
 inline static void InitImGui()
@@ -127,7 +127,7 @@ inline static void InitImGui()
 
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
-    io.Fonts->AddFontFromFileTTF(g_GuiWindow->strFontPath.c_str(), FONT_SIZE, &fontConfig);
+    io.Fonts->AddFontFromFileTTF(g_GuiWindow->FontPath.c_str(), FONT_SIZE, &fontConfig);
     io.IniFilename = nullptr;
     io.LogFilename = nullptr;
 
@@ -201,7 +201,7 @@ inline static void InitImGui()
 
     ImGui_ImplWin32_Init(g_GuiWindow->hWnd);
     ImGui_ImplDX11_Init(g_pd3dDevice, g_pd3dDeviceContext);
-    g_OriginalWndProc = (WNDPROC)::SetWindowLongPtr(g_hWnd, GWLP_WNDPROC, (LONG_PTR)WndProc_Target);
+    g_OriginWndProc = (WNDPROC)::SetWindowLongPtr(g_hWnd, GWLP_WNDPROC, (LONG_PTR)WndProc_Target);
 }
 
 DWORD WINAPI ThreadEntry(LPVOID lpParameter)
@@ -274,7 +274,7 @@ DWORD WINAPI ThreadEntry(LPVOID lpParameter)
         ImGui_ImplWin32_NewFrame();
         ImGui::NewFrame();
 
-        if (g_GuiWindow->showMenu) {
+        if (g_GuiWindow->IsShowMenu) {
             ImGui::ShowDemoWindow();
             //g_GuiWindow->Update();
         }
@@ -293,7 +293,7 @@ DWORD WINAPI ThreadEntry(LPVOID lpParameter)
         HRESULT hResult = g_pSwapChain->Present(1, 0);
         g_SwapChainOccluded = (hResult == DXGI_STATUS_OCCLUDED);
     }
-    ::SetWindowLongPtr(g_hWnd, GWLP_WNDPROC, (LONG_PTR)g_OriginalWndProc);
+    ::SetWindowLongPtr(g_hWnd, GWLP_WNDPROC, (LONG_PTR)g_OriginWndProc);
     ImGui_ImplDX11_Shutdown();
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
